@@ -63,9 +63,6 @@ json_string = model.to_json()
 open('./' + name_experiment + '/' + name_experiment + '_architecture.json', 'w').write(json_string)
 
 
-
-
-#============  Training ==================================
 checkpointer = [
 	ModelCheckpoint(filepath='./'+name_experiment+'/'+name_experiment +'_best_weights.h5',
 		verbose=1,
