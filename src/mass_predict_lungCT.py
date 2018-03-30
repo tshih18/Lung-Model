@@ -133,11 +133,10 @@ model.load_weights(path_experiment + name_experiment + '_' + best_last + '_weigh
 predict_batch = int(config.get('testing settings', 'test_batch'))
 file_num = 0
 count = 0
-print len(img_gTruth_paths)
+# print len(img_gTruth_paths)
 
 # Main loop for predictions
 for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
-
     # Reset image and groundTruth variables after every batch
     if count % predict_batch is 0:
         image = np.empty((predict_batch, full_img_height, full_img_width, full_img_channels))
@@ -154,17 +153,18 @@ for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
     groundTruth[count] = np_gTruth
 
     # Go here to continue adding images
-    # if (count + 1) < predict_batch:
-    if (count) % predict_batch is not 0:
-        # if (len(img_gTruth_paths) - i) > predict_batch:
-        # if its not the end yet
-        if i is not len(img_gTruth_paths):
+    if (count+1) < predict_batch:
+        # if its not the last image
+        if i != len(img_gTruth_paths):
             count += 1
             continue
+        # Handle last batch of images (might not be multiple of batch size)
         else:
             # I want to truncate shape[0] img and groundTruth array
             empty_range = range(count+1, predict_batch)
             image = np.delete(image, empty_range, 0)
+            groundTruth = np.delete(groundTruth, empty_range, 0)
+            predict_batch = image.shape[0]
 
     count = 0
 
