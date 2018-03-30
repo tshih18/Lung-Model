@@ -28,8 +28,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 config = configparser.RawConfigParser()
 config.read('configuration.txt')
 # Path to train images
-original_imgs_train = './Lung_CT/train/images/'
-groundTruth_imgs_train = './Lung_CT/train/ground_truth/'
+original_imgs_train = './Lung_CT/train/all_images/'
+groundTruth_imgs_train = './Lung_CT/train/all_ground_truth/'
 # Path to validation images
 original_imgs_val = './Lung_CT/validation/images/'
 groundTruth_imgs_val = './Lung_CT/validation/ground_truth/'
@@ -100,54 +100,57 @@ checkpointer = [
 
 
 # Extract patches from data
-patches_imgs_train, patches_groundTruths_train = get_data_training(
-	train_imgs_original = path_data + train_imgs_path,# patches_imgs_train,
-	train_groundTruth = path_data + train_gtruths_path, #patches_groundTruths_train,
-	patch_height = patch_height,
-	patch_width = patch_width,
-	N_subimgs = int(config.get('training settings', 'N_subimgs')),
-	inside_FOV = config.getboolean('training settings', 'inside_FOV'),
-	patches = False
-)
-
-# reduce memory consumption & match output of model
-patches_groundTruths_train = masks_Unet(patches_groundTruths_train)
-
-print "PATCHES GTRUTHS TRAIN SHAPE:" + str(patches_groundTruths_train.shape)
-
-history = model.fit(patches_imgs_train, patches_groundTruths_train, epochs=50, batch_size=batch_size,
-					verbose=2, shuffle=True, validation_split=0.2, callbacks=checkpointer)
-
-
-model.save_weights('./'+name_experiment+'/'+name_experiment +'_last_weights.h5', overwrite=True)
+# patches_imgs_train, patches_groundTruths_train = get_data_training(
+# 	train_imgs_original = path_data + train_imgs_path,# patches_imgs_train,
+# 	train_groundTruth = path_data + train_gtruths_path, #patches_groundTruths_train,
+# 	patch_height = patch_height,
+# 	patch_width = patch_width,
+# 	N_subimgs = int(config.get('training settings', 'N_subimgs')),
+# 	inside_FOV = config.getboolean('training settings', 'inside_FOV'),
+# 	patches = False
+# )
+#
+# # reduce memory consumption & match output of model
+# patches_groundTruths_train = masks_Unet(patches_groundTruths_train)
+#
+# print "PATCHES GTRUTHS TRAIN SHAPE:" + str(patches_groundTruths_train.shape)
+#
+# history = model.fit(patches_imgs_train, patches_groundTruths_train, epochs=50, batch_size=batch_size,
+# 					verbose=2, shuffle=True, validation_split=0.2, callbacks=checkpointer)
+#
+#
+# model.save_weights('./'+name_experiment+'/'+name_experiment +'_last_weights.h5', overwrite=True)
 # ------------------------------------------------------------------------------------------------------
 
 
 
 
 # -------- Custom generator class --------------------------------------------
-# train_generator = DataGenerator(imgs_path=original_imgs_train,
-# 								gTruth_path=groundTruth_imgs_train,
-# 								batch_size=2, height=512, width=512,
-# 								channels=3, shuffle=True, name='train')
-# val_generator = DataGenerator(imgs_path=original_imgs_val,
-# 								gTruth_path=groundTruth_imgs_val,
-# 								batch_size=2, height=512, width=512,
-# 								channels=3, shuffle=True, name='val')
-# history = model.fit_generator(
-# 		generator=train_generator,
-# 		steps_per_epoch=1,
-# 		epochs=N_epochs,
-# 		verbose=2,
-# 		callbacks=checkpointer,
-# 		validation_data=val_generator,
-# 		validation_steps=1,
-#		use_multiprocessing=True,
-#		n_workers=4,
-# 		shuffle=False
-# )
-#
-# model.save_weights('./'+name_experiment+'/'+name_experiment +'_last_weights.h5', overwrite=True)
+train_generator = DataGenerator(imgs_path=original_imgs_train,
+								gTruth_path=groundTruth_imgs_train,
+								batch_size=2, height=512, width=512,
+								channels=3, shuffle=True, name='train')
+val_generator = DataGenerator(imgs_path=original_imgs_val,
+								gTruth_path=groundTruth_imgs_val,
+								batch_size=2, height=512, width=512,
+								channels=3, shuffle=True, name='val')
+print "Total number of samples to yield: " + str(len(train_generator))
+print "Total number of samples to yield: " + str(len(val_generator))
+history = model.fit_generator(
+		generator=train_generator,
+		steps_per_epoch=len(train_generator),
+		epochs=N_epochs,
+		verbose=2,
+		callbacks=checkpointer,
+		validation_data=val_generator,
+		validation_steps=len(val_generator),
+		max_queue_size=10,
+		# workers=4,
+		# use_multiprocessing=True,
+		shuffle=False
+)
+
+model.save_weights('./'+name_experiment+'/'+name_experiment +'_last_weights.h5', overwrite=True)
 # ------------------------------------------------------------------------------------------------------
 
 

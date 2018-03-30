@@ -46,36 +46,24 @@ import cv2
 
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-file_num = 0
-
 
 #========= CONFIG FILE TO READ FROM =======
 config = ConfigParser.RawConfigParser()
 config.read('configuration.txt')
 #===========================================
 
-#run the training on invariant or local
-path_data = config.get('data paths', 'path_local')
-
 #original test images (for FOV selection)
-test_imgs_original_path = path_data + config.get('data paths', 'test_imgs_original')
-test_imgs_orig = load_hdf5(test_imgs_original_path)
 full_img_height = int(config.get('image attributes', 'height'))
 full_img_width = int(config.get('image attributes', 'width'))
 full_img_channels = int(config.get('image attributes', 'channels'))
 
-#the border masks provided by the DRIVE
-test_imgs_groundTruth_path = path_data + config.get('data paths', 'test_groundTruth')
-
-# the number of images to test
-num_test_imgs = int(config.get('testing settings', 'total_num_images_to_test'))
 # dimension of the patches
 patch_height = int(config.get('data attributes', 'patch_height'))
 patch_width = int(config.get('data attributes', 'patch_width'))
-#the stride in case output with average
-stride_height = int(config.get('testing settings', 'stride_height'))
-stride_width = int(config.get('testing settings', 'stride_width'))
-assert (stride_height < patch_height and stride_width < patch_width)
+
+best_last = config.get('testing settings', 'best_last')
+predict_batch = int(config.get('testing settings', 'test_batch'))
+
 #model name
 name_experiment = config.get('experiment name', 'name')
 path_experiment = './' +name_experiment +'/'
@@ -84,21 +72,14 @@ path_experiment = './' +name_experiment +'/'
 original_imgs_test = "./Lung_CT/test/images/"
 groundTruth_imgs_test = "./Lung_CT/test/ground_truth/"
 
-#Grouping of the predicted images
-N_visual = int(config.get('testing settings', 'N_group_visual'))
-#====== average mode ===========
-average_mode = config.getboolean('testing settings', 'average_mode')
-
-
-# -------- Predict on a folder of images ---------------------------------------
-# Path to test images
-original_imgs_test = './Lung_CT/test/images/'
-groundTruth_imgs_test = './Lung_CT/test/ground_truth/'
-
+# Save folders to predict
 img_folders = []
-img_file_paths = []
 gTruth_folders = []
+
+# Save image paths
+img_file_paths = []
 gTruth_file_paths = []
+
 
 # Get the full paths for testing images
 for folder in os.listdir(original_imgs_test):
@@ -124,16 +105,16 @@ for folder in gTruth_folders:
 
 img_gTruth_paths = zip(img_file_paths, gTruth_file_paths)
 
-best_last = config.get('testing settings', 'best_last')
-#Load the saved model
+
+# Load the saved model
 model = model_from_json(open(path_experiment + name_experiment + '_architecture.json').read())
 model.load_weights(path_experiment + name_experiment + '_' + best_last + '_weights.h5')
 
 
-predict_batch = int(config.get('testing settings', 'test_batch'))
+# Tracks and names files
 file_num = 0
+# Handles counting number of images per batch
 count = 0
-# print len(img_gTruth_paths)
 
 # Main loop for predictions
 for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
@@ -179,38 +160,33 @@ for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
     image = my_PreProc(image)
     groundTruth = groundTruth/255.
 
-
     #Calculate the predictions
     time_start = time.time()
     print "Predicting images"
-    # predict on patches
     predictions = model.predict(image, batch_size=32, verbose=2)
-    # predict on full images
-    # predictions = model.predict(test_imgs_arr, batch_size=32, verbose=2)
     print "Total prediction time: " + str(time.time() - time_start) + "seconds"
     print "predicted images size: " + str(predictions.shape)
 
     predictions = pred_to_imgs(predictions, patch_height, patch_width, "original")
 
+    # Transpose arrays to save as image
+    predictions = np.transpose(predictions, (0,2,3,1))
+    image = np.transpose(image, (0,2,3,1))
+    groundTruth = np.transpose(groundTruth, (0,2,3,1))
 
     #===== Convert the prediction arrays in corresponding images
 
     for i in range(predict_batch):
-        # Transpose arrays to save as image
-        prediction = np.transpose(predictions[i], (1,2,0))
-        original = np.transpose(image[i], (1,2,0))
-        ground = np.transpose(groundTruth[i], (1,2,0))
-
         # Save them together as images
         threshold_confusion = 0.1
-        thresh_pred = copy.deepcopy(prediction)
+        thresh_pred = copy.deepcopy(predictions[i])
         thresh_pred[thresh_pred >= threshold_confusion] = 1 # threshold value from confusion matrix testing below
         thresh_pred[thresh_pred < threshold_confusion] = 0 # threshold value from confusion matrix testing below
         # print "Original Image Shape ", original.shape
         # print "Ground Truth Shape ", ground.shape
         # print "Prediction Shape ", prediction.shape
         # print "THRESH_PRED", thresh_pred.shape
-        total_img = np.concatenate((original, ground, prediction, thresh_pred), axis=0)
+        total_img = np.concatenate((image[i], groundTruth[i], predictions[i], thresh_pred), axis=0)
         #total_img = np.concatenate((orig_stripe, pred_stripe, thresh_pred),axis=0)
         # total_img = thresh_pred
 

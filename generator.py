@@ -3,6 +3,7 @@ from PIL import Image
 from prepare_datasets import natural_sort
 from keras.utils import Sequence
 import sys
+import os
 
 sys.path.insert(0, './lib/')
 from help_functions import *
@@ -60,7 +61,7 @@ class DataGenerator(Sequence):
 
     # Generate one batch of data
     def __getitem__(self, index):
-        print "Getting batch num " + str(index) + " for " + self.name
+        # print "Getting batch num " + str(index) + " for " + self.name
         # Generate indexes of the batch
         indices_batch = self.indices_list[index*self.batch_size:(index+1)*self.batch_size]
 
@@ -105,31 +106,6 @@ class DataGenerator(Sequence):
         images = my_PreProc(images)
         groundTruths = groundTruths/255.
 
+        groundTruths = masks_Unet(groundTruths)
+
         return images, groundTruths
-
-        # # Normalize data
-        # images = self.rgb2gray(images)
-        # images = self.dataset_normalized(images)
-        # images = images/255
-        # groundTruths = groundTruths/255
-
-
-
-    #convert RGB image in black and white
-    def rgb2gray(self, rgb):
-        assert (len(rgb.shape)==4)  #4D arrays
-        assert (rgb.shape[1]==3)
-        bn_imgs = rgb[:,0,:,:]*0.299 + rgb[:,1,:,:]*0.587 + rgb[:,2,:,:]*0.114
-        bn_imgs = np.reshape(bn_imgs,(rgb.shape[0],1,rgb.shape[2],rgb.shape[3]))
-        return bn_imgs
-
-    def dataset_normalized(self, imgs):
-        assert (len(imgs.shape)==4)  #4D arrays
-        assert (imgs.shape[1]==1)  #check the channel is 1
-        imgs_normalized = np.empty(imgs.shape)
-        imgs_std = np.std(imgs)
-        imgs_mean = np.mean(imgs)
-        imgs_normalized = (imgs-imgs_mean)/imgs_std
-        for i in range(imgs.shape[0]):
-            imgs_normalized[i] = ((imgs_normalized[i] - np.min(imgs_normalized[i])) / (np.max(imgs_normalized[i])-np.min(imgs_normalized[i])))*255
-        return imgs_normalized

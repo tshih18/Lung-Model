@@ -1,6 +1,6 @@
 from keras.models import Model
 from keras.layers import Input, average, merge, concatenate,  Reshape, core, Lambda
-from keras.layers import Conv2D, Activation, MaxPooling2D, BatchNormalization, Conv2DTranspose, UpSampling2D, Dropout, ThresholdedReLU, ZeroPadding2D, Cropping2D, Convolution2D
+from keras.layers import Conv2D, Dense, Activation, MaxPooling2D, BatchNormalization, Conv2DTranspose, UpSampling2D, Dropout, ThresholdedReLU, ZeroPadding2D, Cropping2D, Convolution2D
 from keras.optimizers import Adam
 from keras import backend as K
 from keras import optimizers
@@ -324,9 +324,10 @@ def get_patches_unet4(n_ch,patch_height,patch_width):
     # # Output shape as entire image
     # conv8 = Conv2D(2, (1, 1), padding='same', data_format='channels_first')(conv7)
     # conv8 = BatchNormalization(axis=1)(conv8)
-    # # conv8 = Activation('relu')(conv8)
-    # # conv8 = Conv2D(1, (1, 1), padding='same', data_format='channels_first')(conv8)
-    # # conv8 = BatchNormalization(axis=1)(conv8)
+    # conv8 = Activation('relu')(conv8)
+    # conv8 = Conv2D(1, (1, 1), padding='same', data_format='channels_first')(conv8)
+    # conv8 = BatchNormalization(axis=1)(conv8)
+    # conv8 = Dense(1, data_format='channels_first')(conv8)
     # conv8 = core.Activation('softmax')(conv8)
 
     # Output shape as batches, height*width, 2
@@ -334,7 +335,7 @@ def get_patches_unet4(n_ch,patch_height,patch_width):
     conv8 = core.Reshape((2,patch_height*patch_width))(conv8)
     conv8 = core.Permute((2,1))(conv8)
     conv8 = core.Activation('softmax')(conv8)
-
+    #
     model = Model(inputs=inputs, outputs=conv8)
     # multi_model = multi_gpu_model(model, gpus=2)
     # sgd = SGD(lr=0.01, decay=1e-6, momentum=0.3, nesterov=False)

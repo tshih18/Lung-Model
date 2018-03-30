@@ -7,7 +7,7 @@ test_groundTruth = Lung_CT_datasets_groundTruth_test.hdf5
 
 
 [experiment name]
-name = unet4_fullImgsRand1_lung_model
+name = unet4_fullImgsCustomGenClass_lung_model
 
 
 [data attributes]

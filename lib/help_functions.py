@@ -56,8 +56,8 @@ def masks_Unet(masks):
     # THEO assert (masks.shape[1]==1)  #check the channel is 1
     im_h = masks.shape[2] # patch size h
     im_w = masks.shape[3] # patch size w
-    print "Masks shape:", masks.shape
-    print "Patch size:", im_h, im_w
+    # print "Masks shape:", masks.shape
+    # print "Patch size:", im_h, im_w
     masks = np.reshape(masks,(masks.shape[0],im_h*im_w))
     new_masks = np.empty((masks.shape[0],im_h*im_w,2))
     for i in range(masks.shape[0]):
