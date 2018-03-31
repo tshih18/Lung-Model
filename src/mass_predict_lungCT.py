@@ -35,7 +35,7 @@ from extract_patches import pred_only_FOV
 from extract_patches import get_data_testing
 from extract_patches import get_data_testing_overlap
 sys.path.insert(0, './')
-from prepare_datasets import get_datasets, natural_sort
+from prepare_datasets import get_datasets
 # pre_processing.py
 from pre_processing import my_PreProc
 import tensorflow as tf
@@ -47,10 +47,9 @@ import cv2
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-#========= CONFIG FILE TO READ FROM =======
+# -------- Load settings from Config file -------------------------------------
 config = ConfigParser.RawConfigParser()
 config.read('configuration.txt')
-#===========================================
 
 #original test images (for FOV selection)
 full_img_height = int(config.get('image attributes', 'height'))
@@ -71,38 +70,11 @@ path_experiment = './' +name_experiment +'/'
 # test imgs path
 original_imgs_test = "./Lung_CT/test/images/"
 groundTruth_imgs_test = "./Lung_CT/test/ground_truth/"
+# -----------------------------------------------------------------------------
 
-# Save folders to predict
-img_folders = []
-gTruth_folders = []
-
-# Save image paths
-img_file_paths = []
-gTruth_file_paths = []
-
-
-# Get the full paths for testing images
-for folder in os.listdir(original_imgs_test):
-    img_folders.append(folder)
-natural_sort(img_folders)
-
-for folder in img_folders:
-    for path, subdirs, files in os.walk(original_imgs_test + folder):
-        natural_sort(files)
-        for i in range(len(files)):
-            img_file_paths.append(original_imgs_test + folder + '/' + files[i])
-
-# Get the full paths for testing ground truths
-for folder in os.listdir(groundTruth_imgs_test):
-    gTruth_folders.append(folder)
-natural_sort(gTruth_folders)
-
-for folder in gTruth_folders:
-    for path, subdirs, files in os.walk(groundTruth_imgs_test + folder):
-        natural_sort(files)
-        for i in range(len(files)):
-            gTruth_file_paths.append(groundTruth_imgs_test + folder + '/' + files[i])
-
+# Get the full paths for testing images and ground truths
+img_file_paths = get_image_paths(original_imgs_test)
+gTruth_file_paths = get_image_paths(groundTruth_imgs_test)
 img_gTruth_paths = zip(img_file_paths, gTruth_file_paths)
 
 
@@ -165,7 +137,7 @@ for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
     print "Predicting images"
     predictions = model.predict(image, batch_size=32, verbose=2)
     print "Total prediction time: " + str(time.time() - time_start) + "seconds"
-    print "predicted images size: " + str(predictions.shape)
+    # print "predicted images size: " + str(predictions.shape)
 
     predictions = pred_to_imgs(predictions, patch_height, patch_width, "original")
 
@@ -174,8 +146,7 @@ for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
     image = np.transpose(image, (0,2,3,1))
     groundTruth = np.transpose(groundTruth, (0,2,3,1))
 
-    #===== Convert the prediction arrays in corresponding images
-
+    # Convert the prediction arrays in corresponding images
     for i in range(predict_batch):
         # Save them together as images
         threshold_confusion = 0.1
@@ -189,7 +160,6 @@ for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
         total_img = np.concatenate((image[i], groundTruth[i], predictions[i], thresh_pred), axis=0)
         #total_img = np.concatenate((orig_stripe, pred_stripe, thresh_pred),axis=0)
         # total_img = thresh_pred
-
         save_path = path_experiment+name_experiment +"_Original_GroundTruth_Prediction"+str(file_num)
         # visualize(thresh_pred, save_path)
         visualize(total_img, save_path)#.show()

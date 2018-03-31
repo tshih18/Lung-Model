@@ -12,7 +12,7 @@ import cv2
 from help_functions import *
 
 
-#My pre processing (use for both training and testing!)
+# My pre-processing (use for both training and testing!)
 def my_PreProc(data):
     assert(len(data.shape)==4)
     # asserting number of channels
@@ -31,7 +31,7 @@ def my_PreProc(data):
 #========= PRE PROCESSING FUNCTIONS ========================#
 #============================================================
 
-#==== histogram equalization
+# Histogram equalization
 def histo_equalized(imgs):
     assert (len(imgs.shape)==4)  #4D arrays
     assert (imgs.shape[1]==1)  #check the channel is 1
@@ -54,7 +54,7 @@ def clahe_equalized(imgs):
     return imgs_equalized
 
 
-# ===== normalize over the dataset
+# Normalize over the dataset
 def dataset_normalized(imgs):
     assert (len(imgs.shape)==4)  #4D arrays
     assert (imgs.shape[1]==1)  #check the channel is 1

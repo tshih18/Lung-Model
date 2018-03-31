@@ -1,7 +1,24 @@
+import os
+import re
 import h5py
 import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
+
+# Test if a given chunk is an int
+def tryint(c):
+    try:
+        return int(c)
+    except:
+        return c
+
+# turn a string into a list of string and number chunks
+def alphanum_key(s):
+    return [tryint(c) for c in re.split('([0-9]+)', s)]
+
+# sort the given list
+def natural_sort(list):
+    list.sort(key=alphanum_key)
 
 def load_hdf5(infile):
   with h5py.File(infile,"r") as f:  #"with" close the file after its nested commands
@@ -35,7 +52,6 @@ def group_images(data,per_row):
         totimg = np.concatenate((totimg,all_stripe[i]),axis=0)
     return totimg
 
-
 #visualize image (as PIL image, NOT as matplotlib!)
 def visualize(data,filename):
     assert (len(data.shape)==3) #height*width*channels
@@ -48,7 +64,6 @@ def visualize(data,filename):
         img = Image.fromarray((data*255).astype(np.uint8))  #the image is between 0-1
     img.save(filename + '.png')
     return img
-
 
 #prepare the mask in the right shape for the Unet
 def masks_Unet(masks):
@@ -70,7 +85,6 @@ def masks_Unet(masks):
                 new_masks[i,j,1]=1
     return new_masks
 
-
 def pred_to_imgs(pred, patch_height, patch_width, mode="original"):
     assert (len(pred.shape)==3)  #3D array: (Npatches,height*width,2)
     assert (pred.shape[2]==2 )  #check the classes are 2
@@ -91,3 +105,27 @@ def pred_to_imgs(pred, patch_height, patch_width, mode="original"):
         exit()
     pred_images = np.reshape(pred_images,(pred_images.shape[0],1, patch_height, patch_width))
     return pred_images
+
+# Folder structure needs to be in this order (example)
+# |-train
+#   |-images
+#     |-VESSEL12_01_png
+#       |-VESSEL12_01-slice.png
+#   |-ground_truth
+#     |-VESSEL12_01_png
+#       |-VESSEL12_01-slice.png
+def get_image_paths(imgs_path):
+    img_folders = []
+    img_file_paths = []
+
+    for folder in os.listdir(imgs_path):
+        img_folders.append(folder)
+    natural_sort(img_folders)
+
+    for folder in img_folders:
+        for path, subdirs, files in os.walk(imgs_path + folder):
+            natural_sort(files)
+            for i in range(len(files)):
+                img_file_paths.append(imgs_path + folder + '/' + files[i])
+
+    return img_file_paths

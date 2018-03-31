@@ -12,11 +12,9 @@ import cv2
 import configparser
 import re
 from scipy.misc import imshow
-import cv2
-
-def write_hdf5(arr,outfile):
-  with h5py.File(outfile,"w") as f:
-    f.create_dataset("image", data=arr, dtype=arr.dtype)
+import sys
+sys.path.insert(0, './lib/')
+from help_functions import natural_sort, write_hdf5
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
@@ -47,22 +45,15 @@ channels = 3
 height = 512
 width = 512
 
-# Test if a given chunk is an int
-def tryint(c):
-    try:
-        return int(c)
-    except:
-        return c
-
-# turn a string into a list of string and number chunks
-def alphanum_key(s):
-    return [tryint(c) for c in re.split('([0-9]+)', s)]
-
-# sort the given list
-def natural_sort(list):
-    list.sort(key=alphanum_key)
 
 # Separates each folder into a hdf5 dataset (for a lot of data)
+# |-train
+#   |-images
+#     |-VESSEL12_01_png
+#       |-image.png
+#   |-ground_truth
+#     |-VESSEL12_01_png
+#       |-image.png
 def mass_get_datasets(Nimgs,imgs_dir,groundTruth_dir,train_test="null"):
 
     folders = []
@@ -153,7 +144,12 @@ def mass_get_datasets(Nimgs,imgs_dir,groundTruth_dir,train_test="null"):
             hdf5_num += 1
 
 
-
+# Folder structure needs to be in this order (example)
+# |-train
+#   |-images
+#     |-VESSEL12_01-slice.png
+#   |-ground_truth
+#     |-VESSEL12_01-slice.png
 def get_datasets(Nimgs,imgs_dir,groundTruth_dir,train_test="null"):
     imgs = np.empty((Nimgs, height, width, channels))
     groundTruth = np.empty((Nimgs, height, width))
@@ -166,11 +162,6 @@ def get_datasets(Nimgs,imgs_dir,groundTruth_dir,train_test="null"):
             print("original image: " + files[i])
             img = Image.open(imgs_dir + files[i])#.convert("L")
             np_img = np.asarray(img)[:,:,:3]
-
-            # imgs_std = np.std(np_img)
-            # imgs_mean = np.mean(np_img)
-            # np_img = (np_img-imgs_mean)/imgs_std
-
             imgs[i] = np_img
 
     # Save ground truth images
@@ -181,7 +172,6 @@ def get_datasets(Nimgs,imgs_dir,groundTruth_dir,train_test="null"):
             print("ground truth name: " + files[i])
             g_truth = Image.open(groundTruth_dir + files[i]).convert("L")
             np_g_truth = np.asarray(g_truth)
-
             groundTruth[i] = np_g_truth
 
 

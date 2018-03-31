@@ -1,30 +1,29 @@
 import numpy as np
 import configparser
 import os
+from itertools import izip
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from keras.utils.vis_utils import plot_model
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, TensorBoard, ReduceLROnPlateau
 
 import sys
 sys.path.insert(0, './lib/')
 from help_functions import *
 from pre_processing import *
-
-#function to obtain data for training/testing (validation)
 from extract_patches import get_data_training
 from dataset import *
 
-from keras.utils.vis_utils import plot_model
-from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, TensorBoard, ReduceLROnPlateau
-from itertools import izip
-import tensorflow as tf
-import matplotlib.pyplot as plt
 sys.path.insert(0, './')
-from prepare_datasets import get_datasets, natural_sort
+from prepare_datasets import get_datasets
 from models import get_fcn_model, get_patches_unet5, get_patches_unet3, get_patches_unet4, get_full_unet5, get_full_unet3
 from generator import DataGenerator
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 
-# ----------------- Load settings from Config file -----------------------------
+# -------- Load settings from Config file -------------------------------------
 config = configparser.RawConfigParser()
 config.read('configuration.txt')
 # Path to train images
@@ -39,6 +38,7 @@ train_imgs_path = config.get('data paths', 'train_imgs_original')
 train_gtruths_path = config.get('data paths', 'train_groundTruth')
 # Experiment name
 name_experiment = config.get('experiment name', 'name')
+save_path = './' + name_experiment + '/' + name_experiment
 # Training settings
 N_epochs = int(config.get('training settings', 'N_epochs'))
 batch_size = int(config.get('training settings', 'batch_size'))
@@ -51,20 +51,20 @@ patch_width = int(config.get('data attributes', 'patch_width'))
 img_ch = int(config.get('image attributes', 'channels'))
 img_height = int(config.get('image attributes', 'height'))
 img_width = int(config.get('image attributes', 'width'))
+# -----------------------------------------------------------------------------
 
 
-
-# #=========== Construct and save the model arcitecture =====
+# -------- Construct and save the model arcitecture ---------------------------
 model = get_patches_unet4(patch_ch, patch_height, patch_width)  #the U-net model
 # model.summary()
 print "Final output of the network: " + str(model.output_shape)
-plot_model(model, show_shapes=True, to_file='./' + name_experiment+'/' + name_experiment + '_model.png')   #check how the model looks like
+plot_model(model, show_shapes=True, to_file=save_path + '_model.png')   #check how the model looks like
 json_string = model.to_json()
-open('./' + name_experiment + '/' + name_experiment + '_architecture.json', 'w').write(json_string)
+open(save_path + '_architecture.json', 'w').write(json_string)
 
 
 checkpointer = [
-	ModelCheckpoint(filepath='./'+name_experiment+'/'+name_experiment +'_best_weights.h5',
+	ModelCheckpoint(filepath=save_path + '_best_weights.h5',
 		verbose=1,
 		monitor='val_loss',
 		mode='auto',
@@ -88,6 +88,37 @@ checkpointer = [
 	#     embeddings_layer_names=None,
 	#     embeddings_metadata=None)
 ]
+
+# -------- Custom generator class --------------------------------------------
+train_generator = DataGenerator(imgs_path=original_imgs_train,
+								gTruth_path=groundTruth_imgs_train,
+								batch_size=2, height=512, width=512,
+								channels=3, shuffle=True, name='train')
+val_generator = DataGenerator(imgs_path=original_imgs_val,
+								gTruth_path=groundTruth_imgs_val,
+								batch_size=2, height=512, width=512,
+								channels=3, shuffle=True, name='val')
+
+print "Total number of samples to yield: " + str(len(train_generator))
+print "Total number of samples to yield: " + str(len(val_generator))
+
+history = model.fit_generator(
+		generator=train_generator,
+		steps_per_epoch=len(train_generator),
+		epochs=N_epochs,
+		verbose=2,
+		callbacks=checkpointer,
+		validation_data=val_generator,
+		validation_steps=len(val_generator),
+		max_queue_size=10,
+		# workers=4,
+		# use_multiprocessing=True,
+		shuffle=False
+)
+
+model.save_weights(save_path + '_last_weights.h5', overwrite=True)
+
+# ------------------------------------------------------------------------------------------------------
 
 
 # -------- Fit -----------------------------------------------------------------------------------------
@@ -118,40 +149,6 @@ checkpointer = [
 #
 # model.save_weights('./'+name_experiment+'/'+name_experiment +'_last_weights.h5', overwrite=True)
 # ------------------------------------------------------------------------------------------------------
-
-
-
-
-# -------- Custom generator class --------------------------------------------
-train_generator = DataGenerator(imgs_path=original_imgs_train,
-								gTruth_path=groundTruth_imgs_train,
-								batch_size=2, height=512, width=512,
-								channels=3, shuffle=True, name='train')
-val_generator = DataGenerator(imgs_path=original_imgs_val,
-								gTruth_path=groundTruth_imgs_val,
-								batch_size=2, height=512, width=512,
-								channels=3, shuffle=True, name='val')
-print "Total number of samples to yield: " + str(len(train_generator))
-print "Total number of samples to yield: " + str(len(val_generator))
-history = model.fit_generator(
-		generator=train_generator,
-		steps_per_epoch=len(train_generator),
-		epochs=N_epochs,
-		verbose=2,
-		callbacks=checkpointer,
-		validation_data=val_generator,
-		validation_steps=len(val_generator),
-		max_queue_size=10,
-		# workers=4,
-		# use_multiprocessing=True,
-		shuffle=False
-)
-
-model.save_weights('./'+name_experiment+'/'+name_experiment +'_last_weights.h5', overwrite=True)
-# ------------------------------------------------------------------------------------------------------
-
-
-
 
 
 # -------- Fit loop ----------------------------------------------------------

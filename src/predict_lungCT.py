@@ -1,47 +1,23 @@
-###################################################
-#
-#   Script to
-#   - Calculate prediction of the test dataset
-#   - Calculate the parameters to evaluate the prediction
-#
-##################################################
-
-#Python
 import numpy as np
 import ConfigParser
 from matplotlib import pyplot as plt
-#Keras
-from keras.models import model_from_json
-from keras.models import Model
-
-from PIL import Image
-#scikit learn
-from sklearn.metrics import roc_curve
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import jaccard_similarity_score
-from sklearn.metrics import f1_score
-import sys
-sys.path.insert(0, './lib/')
-# help_functions.py
-from help_functions import *
-# extract_patches.py
-from extract_patches import recompone
-from extract_patches import recompone_overlap
-from extract_patches import paint_border
-from extract_patches import kill_border
-from extract_patches import pred_only_FOV
-from extract_patches import get_data_testing
-from extract_patches import get_data_testing_overlap
-sys.path.insert(0, './')
-from prepare_datasets import get_datasets, natural_sort
-# pre_processing.py
-from pre_processing import my_PreProc
 import tensorflow as tf
 import time
 import copy
 import os
+import sys
+from PIL import Image
+from keras.models import model_from_json, Model
+from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix,
+							precision_recall_curve, jaccard_similarity_score,
+							f1_score
+
+sys.path.insert(0, './lib/')
+from help_functions import *
+from extract_patches import *
+sys.path.insert(0, './')
+from prepare_datasets import get_datasets
+from pre_processing import my_PreProc
 
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -59,22 +35,21 @@ def plot_precision_recall_vs_threshold(precisions, recalls, thresholds, path_exp
 	plt.xlim([-1, 1])
 	plt.savefig(path_experiment+"Precision_vs_Recall.png")
 
-#========= CONFIG FILE TO READ FROM =======
+# -------- Load settings from Config file -------------------------------------
 config = ConfigParser.RawConfigParser()
 config.read('configuration.txt')
-#===========================================
 
-#run the training on invariant or local
+# Run the training on invariant or local
 path_data = config.get('data paths', 'path_local')
 
-#original test images (for FOV selection)
+# Original test images (for FOV selection)
 test_imgs_original_path = path_data + config.get('data paths', 'test_imgs_original')
 test_imgs_orig = load_hdf5(test_imgs_original_path)
 full_img_height = config.get('image attributes', 'height')
 full_img_width = config.get('image attributes', 'width')
 full_img_channels = config.get('image attributes', 'channels')
 
-#the border masks provided by the DRIVE
+# Path to test hdf5 file
 test_imgs_groundTruth_path = path_data + config.get('data paths', 'test_groundTruth')
 
 # the number of images to test
@@ -86,7 +61,7 @@ patch_width = int(config.get('data attributes', 'patch_width'))
 stride_height = int(config.get('testing settings', 'stride_height'))
 stride_width = int(config.get('testing settings', 'stride_width'))
 assert (stride_height < patch_height and stride_width < patch_width)
-#model name
+# Model name
 name_experiment = config.get('experiment name', 'name')
 path_experiment = './' +name_experiment +'/'
 
@@ -94,52 +69,25 @@ path_experiment = './' +name_experiment +'/'
 original_imgs_test = "./Lung_CT/test/images/"
 groundTruth_imgs_test = "./Lung_CT/test/ground_truth/"
 
-
-#Grouping of the predicted images
+# Grouping of the predicted images
 N_visual = int(config.get('testing settings', 'N_group_visual'))
-#====== average mode ===========
+# Average mode
 average_mode = config.getboolean('testing settings', 'average_mode')
+# -----------------------------------------------------------------------------
 
 
-
-
-# -------- Predict on a folder of images ---------------------------------------
+# -------- Predict on a folder of images --------------------------------------
 # Path to test images
 original_imgs_test = './Lung_CT/test/images/'
 groundTruth_imgs_test = './Lung_CT/test/ground_truth/'
 
-img_folders = []
-img_file_paths = []
-gTruth_folders = []
-gTruth_file_paths = []
-
-# Get the full paths for testing images
-for folder in os.listdir(original_imgs_test):
-	img_folders.append(folder)
-natural_sort(img_folders)
-
-for folder in img_folders:
-	for path, subdirs, files in os.walk(original_imgs_test + folder):
-		natural_sort(files)
-		for i in range(len(files)):
-			img_file_paths.append(original_imgs_test + folder + '/' + files[i])
-
-# Get the full paths for testing ground truths
-for folder in os.listdir(groundTruth_imgs_test):
-	gTruth_folders.append(folder)
-natural_sort(gTruth_folders)
-
-for folder in gTruth_folders:
-	for path, subdirs, files in os.walk(groundTruth_imgs_test + folder):
-		natural_sort(files)
-		for i in range(len(files)):
-			gTruth_file_paths.append(groundTruth_imgs_test + folder + '/' + files[i])
-
-
+# Get the full paths for testing images and ground truths
+img_file_paths = get_image_paths(original_imgs_test)
+gTruth_file_paths = get_image_paths(groundTruth_imgs_test)
 img_gTruth_paths = zip(img_file_paths, gTruth_file_paths)
+
 images_to_predict = 1
 for img_path, gTruth_path in img_gTruth_paths:
-
 	image = np.empty((images_to_predict, full_img_height, full_img_width, full_img_channels))
 	groundTruth = np.empty((images_to_predict, full_img_height, full_img_width))
 
@@ -167,23 +115,11 @@ for img_path, gTruth_path in img_gTruth_paths:
 	image = my_PreProc(image)
 	groundTruth = groundTruth/255.
 
-
-
-
 # -----------------------------------------------------------------------------
 
 
 
-# #ground truth
-# gtruth= path_data + config.get('data paths', 'test_groundTruth')
-# img_truth= load_hdf5(gtruth)
-# visualize(group_images(test_imgs_orig[0:20,:,:,:],5),'original')#.show()
-# visualize(group_images(test_border_masks[0:20,:,:,:],5),'borders')#.show()
-# visualize(group_images(img_truth[0:20,:,:,:],5),'gtruth')#.show()
-
-
-
-#============ Load the data and divide in patches
+# -------- Load the data from hdf5 file and divide in patches -----------------
 patches_imgs_test = None
 new_height = None
 new_width = None
@@ -211,7 +147,7 @@ else:
 		patch_width = patch_width,
 	)
 
-# test_imgs_arr, test_groundTruth_arr = get_datasets(num_test_imgs,original_imgs_test,groundTruth_imgs_test,train_test='test')
+
 
 #================ Run the prediction of the patches ==================================
 best_last = config.get('testing settings', 'best_last')
@@ -235,7 +171,7 @@ pred_patches = pred_to_imgs(predictions, patch_height, patch_width, "original")
 
 
 
-#========== Elaborate and visualize the predicted images ====================
+# -------- Elaborate and visualize the predicted images -----------------------
 pred_imgs = None
 orig_imgs = None
 gtruth_masks = None
@@ -271,7 +207,7 @@ assert (N_predicted%group==0)
 
 threshold_confusion = 0.1 # this is used below for evaluation
 
-
+# Save predictions
 for i in range(int(N_predicted/group)):
 	orig_stripe = group_images(orig_imgs[i*group:(i*group)+group,:,:,:],group)
 	masks_stripe = group_images(gtruth_masks[i*group:(i*group)+group,:,:,:],group)
@@ -290,7 +226,9 @@ for i in range(int(N_predicted/group)):
 	visualize(total_img,path_experiment+name_experiment +"_Original_GroundTruth_Prediction"+str(count))#.show()
 	count += 1
 
-#====== Evaluate the results
+
+
+# -------- Evaluate the results -----------------------------------------------
 print "\n\n========  Evaluate the results ======================="
 #predictions only inside the FOV
 y_scores, y_true = pred_only_FOV(pred_imgs,gtruth_masks)  #returns data only inside the FOV

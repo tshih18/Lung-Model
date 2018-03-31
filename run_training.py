@@ -8,22 +8,21 @@ import os, sys
 import configparser
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-# print(str(os.environ['KERAS_BACKEND']))
 os.environ['KERAS_BACKEBND'] = 'tensorflow'
-# print(str(os.environ['KERAS_BACKEND']))
 
-#config file to read from
+
+# -------- Load settings from Config file -------------------------------------
 config = configparser.RawConfigParser()
 config.readfp(open(r'./configuration.txt'))
-#===========================================
+
 #name of the experiment
 name_experiment = config.get('experiment name', 'name')
-nohup = config.getboolean('training settings', 'nohup')   #std output on log file?
+nohup = config.getboolean('training settings', 'nohup')
+# -----------------------------------------------------------------------------
 
 run_GPU = '' # if sys.platform == 'win32' else ' THEANO_FLAGS=device=gpu,floatX=float32 '
 
-#create a folder for the results
+# Create a folder for the results
 result_dir = name_experiment
 print("\n1. Create directory for the results (if not already existing)")
 if os.path.exists(result_dir):
@@ -39,12 +38,10 @@ if sys.platform=='win32':
 else:
 	os.system('cp configuration.txt ./' +name_experiment+'/'+name_experiment+'_configuration.txt')
 
-# run the experiment
+# Run the training script
 if nohup:
 	print("\n2. Run the training on GPU with nohup")
 	os.system(run_GPU +' nohup python -u ./src/train_lungCT.py > ' +'./'+name_experiment+'/'+name_experiment+'_training.nohup')
 else:
 	print("\n2. Run the training on GPU (no nohup)")
 	os.system(run_GPU +' python ./src/train_lungCT.py')
-
-#Prediction/testing is run with a different script
