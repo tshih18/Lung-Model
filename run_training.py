@@ -7,7 +7,7 @@
 import os, sys
 import configparser
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 os.environ['KERAS_BACKEBND'] = 'tensorflow'
 
 

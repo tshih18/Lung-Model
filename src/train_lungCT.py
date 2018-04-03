@@ -20,8 +20,6 @@ from prepare_datasets import get_datasets
 from models import get_fcn_model, get_patches_unet5, get_patches_unet3, get_patches_unet4, get_full_unet5, get_full_unet3
 from generator import DataGenerator
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
 
 # -------- Load settings from Config file -------------------------------------
 config = configparser.RawConfigParser()
@@ -55,10 +53,10 @@ img_width = int(config.get('image attributes', 'width'))
 
 
 # -------- Construct and save the model arcitecture ---------------------------
-model = get_patches_unet4(patch_ch, patch_height, patch_width)  #the U-net model
+model = get_patches_unet4(patch_ch, patch_height, patch_width)
 # model.summary()
 print "Final output of the network: " + str(model.output_shape)
-plot_model(model, show_shapes=True, to_file=save_path + '_model.png')   #check how the model looks like
+plot_model(model, show_shapes=True, to_file=save_path + '_model.png')
 json_string = model.to_json()
 open(save_path + '_architecture.json', 'w').write(json_string)
 
@@ -92,12 +90,14 @@ checkpointer = [
 # -------- Custom generator class --------------------------------------------
 train_generator = DataGenerator(imgs_path=original_imgs_train,
 								gTruth_path=groundTruth_imgs_train,
-								batch_size=2, height=512, width=512,
-								channels=3, shuffle=True, name='train')
+								batch_size=batch_size, height=img_height,
+								width=img_width, channels=img_ch,
+								shuffle=True, name='train')
 val_generator = DataGenerator(imgs_path=original_imgs_val,
 								gTruth_path=groundTruth_imgs_val,
-								batch_size=2, height=512, width=512,
-								channels=3, shuffle=True, name='val')
+								batch_size=batch_size, height=img_height,
+								width=img_width, channels=img_ch,
+								shuffle=True, name='val')
 
 print "Total number of samples to yield: " + str(len(train_generator))
 print "Total number of samples to yield: " + str(len(val_generator))
@@ -110,9 +110,9 @@ history = model.fit_generator(
 		callbacks=checkpointer,
 		validation_data=val_generator,
 		validation_steps=len(val_generator),
-		max_queue_size=10,
-		# workers=4,
-		# use_multiprocessing=True,
+		max_queue_size=16,
+		workers=8,	# number of cpu cores
+		use_multiprocessing=True,
 		shuffle=False
 )
 
