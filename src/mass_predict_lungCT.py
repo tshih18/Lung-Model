@@ -52,10 +52,11 @@ config = ConfigParser.RawConfigParser()
 config.read('configuration.txt')
 
 #original test images (for FOV selection)
-full_img_height = int(config.get('image attributes', 'height'))
-full_img_width = int(config.get('image attributes', 'width'))
-full_img_channels = int(config.get('image attributes', 'channels'))
+img_height = int(config.get('image attributes', 'height'))
+img_width = int(config.get('image attributes', 'width'))
+img_channel = int(config.get('image attributes', 'channels'))
 
+use_patches = config.getboolean('data attributes', 'use_patches')
 # dimension of the patches
 patch_height = int(config.get('data attributes', 'patch_height'))
 patch_width = int(config.get('data attributes', 'patch_width'))
@@ -92,8 +93,8 @@ count = 0
 for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
     # Reset image and groundTruth variables after every batch
     if count % predict_batch is 0:
-        image = np.empty((predict_batch, full_img_height, full_img_width, full_img_channels))
-        groundTruth = np.empty((predict_batch, full_img_height, full_img_width))
+        image = np.empty((predict_batch, img_height, img_width, img_channel))
+        groundTruth = np.empty((predict_batch, img_height, img_width))
 
     # Get test image
     img = Image.open(img_path)
@@ -123,10 +124,10 @@ for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
 
     # Transpose arrays for model
     image = np.transpose(image,(0,3,1,2))
-    assert(image.shape == (predict_batch,full_img_channels,full_img_height,full_img_width))
+    assert(image.shape == (predict_batch, img_channel, img_height, img_width))
 
-    groundTruth = np.reshape(groundTruth,(predict_batch,1,full_img_height,full_img_width))
-    assert(groundTruth.shape == (predict_batch,1,full_img_height,full_img_width))
+    groundTruth = np.reshape(groundTruth,(predict_batch, 1, img_height, img_width))
+    assert(groundTruth.shape == (predict_batch, 1, img_height, img_width))
 
     # Preprocess image
     image = my_PreProc(image)
@@ -139,8 +140,10 @@ for i, (img_path, gTruth_path) in enumerate(img_gTruth_paths, 1):
     print "Total prediction time: " + str(time.time() - time_start) + "seconds"
     # print "predicted images size: " + str(predictions.shape)
 
-    predictions = pred_to_imgs(predictions, patch_height, patch_width, "original")
-
+    if use_patches:
+        predictions = pred_to_imgs(predictions, patch_height, patch_width, "original")
+    else:
+        predictions = pred_to_imgs(predictions, img_height, img_width, "original")
     # Transpose arrays to save as image
     predictions = np.transpose(predictions, (0,2,3,1))
     image = np.transpose(image, (0,2,3,1))

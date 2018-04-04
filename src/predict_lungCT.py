@@ -45,25 +45,28 @@ path_data = config.get('data paths', 'path_local')
 # Original test images (for FOV selection)
 test_imgs_original_path = path_data + config.get('data paths', 'test_imgs_original')
 test_imgs_orig = load_hdf5(test_imgs_original_path)
-full_img_height = config.get('image attributes', 'height')
-full_img_width = config.get('image attributes', 'width')
-full_img_channels = config.get('image attributes', 'channels')
-
-# Path to test hdf5 file
 test_imgs_groundTruth_path = path_data + config.get('data paths', 'test_groundTruth')
+
+# Dimension of the images
+img_height = config.get('image attributes', 'height')
+img_width = config.get('image attributes', 'width')
+img_channel = config.get('image attributes', 'channels')
+# Dimension of the patches
+patch_height = int(config.get('data attributes', 'patch_height'))
+patch_width = int(config.get('data attributes', 'patch_width'))
 
 # the number of images to test
 num_test_imgs = int(config.get('testing settings', 'total_num_images_to_test'))
-# dimension of the patches
-patch_height = int(config.get('data attributes', 'patch_height'))
-patch_width = int(config.get('data attributes', 'patch_width'))
+
 #the stride in case output with average
 stride_height = int(config.get('testing settings', 'stride_height'))
 stride_width = int(config.get('testing settings', 'stride_width'))
 assert (stride_height < patch_height and stride_width < patch_width)
+
 # Model name
 name_experiment = config.get('experiment name', 'name')
 path_experiment = './' +name_experiment +'/'
+best_last = config.get('testing settings', 'best_last')
 
 # test imgs path
 original_imgs_test = "./Lung_CT/test/images/"
@@ -71,6 +74,7 @@ groundTruth_imgs_test = "./Lung_CT/test/ground_truth/"
 
 # Grouping of the predicted images
 N_visual = int(config.get('testing settings', 'N_group_visual'))
+
 # Average mode
 average_mode = config.getboolean('testing settings', 'average_mode')
 # -----------------------------------------------------------------------------
@@ -88,8 +92,8 @@ img_gTruth_paths = zip(img_file_paths, gTruth_file_paths)
 
 images_to_predict = 1
 for img_path, gTruth_path in img_gTruth_paths:
-    image = np.empty((images_to_predict, full_img_height, full_img_width, full_img_channels))
-    groundTruth = np.empty((images_to_predict, full_img_height, full_img_width))
+    image = np.empty((images_to_predict, img_height, img_width, img_channel))
+    groundTruth = np.empty((images_to_predict, img_height, img_width))
 
     # Get test image
     img = Image.open(img_path)
@@ -99,7 +103,7 @@ for img_path, gTruth_path in img_gTruth_paths:
     image[0] = np_img
 
     image = np.transpose(image,(0,3,1,2))
-    assert(image.shape == (images_to_predict,channels,height,width))
+    assert(image.shape == (images_to_predict,img_channel,img_height,img_width))
 
     # Get test ground truth
     gTruth = Image.open(gTruth_path).convert("L")
@@ -108,8 +112,8 @@ for img_path, gTruth_path in img_gTruth_paths:
     print("ground truth min: " + str(np.min(groundTruth)))
     groundTruth[0] = np_gTruth
 
-    groundTruth = np.reshape(groundTruth,(images_to_predict,1,height,width))
-    assert(groundTruth.shape == (images_to_predict,1,height,width))
+    groundTruth = np.reshape(groundTruth,(images_to_predict,1,img_height,img_width))
+    assert(groundTruth.shape == (images_to_predict,1,img_height,img_width))
 
     # Preprocess image
     image = my_PreProc(image)
@@ -150,25 +154,21 @@ else:
 
 
 #================ Run the prediction of the patches ==================================
-best_last = config.get('testing settings', 'best_last')
-#Load the saved model
 model = model_from_json(open(path_experiment + name_experiment + '_architecture.json').read())
 model.load_weights(path_experiment + name_experiment + '_' + best_last + '_weights.h5')
-#Calculate the predictions
 time_start = time.time()
 print "Predicting images"
-# predict on patches
 predictions = model.predict(patches_imgs_test, batch_size=32, verbose=2)
-# predict on full images
-# predictions = model.predict(test_imgs_arr, batch_size=32, verbose=2)
 print "Total prediction time:" + str(time.time() - time_start) + "seconds"
 print "predicted images size :"
 print predictions.shape
 
 #===== Convert the prediction arrays in corresponding images
-pred_patches = pred_to_imgs(predictions, patch_height, patch_width, "original")
+if use_patches:
+    pred_patches = pred_to_imgs(predictions, patch_height, patch_width, "original")
+else:
+    pred_patches = pred_to_imgs(predictions, img_height, img_width, "original")
 # pred_patches = predictions
-
 
 
 # -------- Elaborate and visualize the predicted images -----------------------
@@ -186,9 +186,9 @@ else:
 # apply the DRIVE masks on the repdictions #set everything outside the FOV to zero!!
 # kill_border(pred_imgs, test_border_masks)  #DRIVE MASK  #only for visualization
 ## back to original dimensions
-orig_imgs = orig_imgs[:,:,0:full_img_height,0:full_img_width]
-pred_imgs = pred_imgs[:,:,0:full_img_height,0:full_img_width]
-gtruth_masks = gtruth_masks[:,:,0:full_img_height,0:full_img_width]
+orig_imgs = orig_imgs[:,:,0:img_height,0:img_width]
+pred_imgs = pred_imgs[:,:,0:img_height,0:img_width]
+gtruth_masks = gtruth_masks[:,:,0:img_height,0:img_width]
 print "Orig imgs shape: " +str(orig_imgs.shape)
 print "pred imgs shape: " +str(pred_imgs.shape)
 print "Gtruth imgs shape: " +str(gtruth_masks.shape)

@@ -41,19 +41,25 @@ save_path = './' + name_experiment + '/' + name_experiment
 N_epochs = int(config.get('training settings', 'N_epochs'))
 batch_size = int(config.get('training settings', 'batch_size'))
 total_num_images = int(config.get('training settings', 'total_num_images_to_train'))
+
+# Decide to use patches or full images as input
+use_patches = config.getboolean('data attributes', 'use_patches')
+
 # Patch data
-patch_ch = 1
 patch_height = int(config.get('data attributes', 'patch_height'))
 patch_width = int(config.get('data attributes', 'patch_width'))
-# Whole image data
-img_ch = int(config.get('image attributes', 'channels'))
+
+img_channel = int(config.get('image attributes', 'channels'))
 img_height = int(config.get('image attributes', 'height'))
 img_width = int(config.get('image attributes', 'width'))
 # -----------------------------------------------------------------------------
 
 
 # -------- Construct and save the model arcitecture ---------------------------
-model = get_patches_unet4(patch_ch, patch_height, patch_width)
+if use_patches:
+	model = get_patches_unet4(1, patch_height, patch_width)
+else:
+	model = get_patches_unet4(1, img_height, img_width)
 # model.summary()
 print "Final output of the network: " + str(model.output_shape)
 plot_model(model, show_shapes=True, to_file=save_path + '_model.png')
@@ -91,12 +97,12 @@ checkpointer = [
 train_generator = DataGenerator(imgs_path=original_imgs_train,
 								gTruth_path=groundTruth_imgs_train,
 								batch_size=batch_size, height=img_height,
-								width=img_width, channels=img_ch,
+								width=img_width, channels=img_channel,
 								shuffle=True, name='train')
 val_generator = DataGenerator(imgs_path=original_imgs_val,
 								gTruth_path=groundTruth_imgs_val,
 								batch_size=batch_size, height=img_height,
-								width=img_width, channels=img_ch,
+								width=img_width, channels=img_channel,
 								shuffle=True, name='val')
 
 print "Total number of samples to yield: " + str(len(train_generator))
@@ -131,8 +137,8 @@ model.save_weights(save_path + '_last_weights.h5', overwrite=True)
 # patches_imgs_train, patches_groundTruths_train = get_data_training(
 # 	train_imgs_original = path_data + train_imgs_path,# patches_imgs_train,
 # 	train_groundTruth = path_data + train_gtruths_path, #patches_groundTruths_train,
-# 	patch_height = patch_height,
-# 	patch_width = patch_width,
+# 	patch_height = height,
+# 	patch_width = width,
 # 	N_subimgs = int(config.get('training settings', 'N_subimgs')),
 # 	inside_FOV = config.getboolean('training settings', 'inside_FOV'),
 # 	patches = False
